@@ -1,124 +1,120 @@
 # BrickGame J2ME
 
-Bộ Brick Game dành cho Nokia CLDC 1.1 / MIDP 2.0, tối ưu cho hai độ phân giải:
+CLDC 1.0 / MIDP 2.0 Brick Game collection for Nokia phones, optimized for
+`320×240` landscape and `240×320` portrait displays.
 
-- `320×240` landscape
-- `240×320` portrait
+> **Forked from** [`vitalibo/Brick-Game-9999-in-1`](https://github.com/vitalibo/Brick-Game-9999-in-1)
+> by Vitaliy Boyarsky — the original desktop *Brick Game 9999-in-1*, ported to
+> CLDC 1.0 / MIDP 2.0 for Nokia feature phones.
 
-Board luôn giữ lưới LCD **10×20**, preview **4×4** và cách vẽ ô 10×10 pixel của source Brick Game gốc.
+## Programs
 
-## Chương trình A–N
+The selector contains twenty independent programs:
 
-| Mã | Game | Luật chính |
-|---|---|---|
-| A-01 | Tanks | Di chuyển xe tăng, bắn xe tăng địch |
-| B-02 | Breakout | Một paddle phá toàn bộ brick |
-| C-03 | Double | Breakout với paddle trên và dưới |
-| D-04 | Wall Ball | Đưa bóng vượt blocker lên đỉnh |
-| E-05 | Race | Đua xe hai làn |
-| F-06 | Highway | Đua xe ba làn, tìm làn trống |
-| G-07 | Tunnel | Lái xe trong đường hầm chuyển động |
-| H-08 | Shoot | Bắn đội hình block rơi xuống |
-| I-09 | Stack | Bắn block để lấp và xoá hàng |
-| J-10 | Invaders | Đội hình block vừa hạ xuống vừa bắn trả |
-| K-11 | Snake | Snake với 16 map obstacle gốc |
-| L-12 | Frogger | Băng qua tám làn và lấp đủ mười goal |
-| M-13 | Match | Ghép đúng ba mã block trước khi chạm đáy |
-| N-14 | Tetris | Tetris bảy tetromino |
+| Code | Program | Code | Program |
+|---|---|---|---|
+| A-01 | Tanks | K-11 | Snake |
+| B-02 | Breakout | L-12 | Frogger |
+| C-03 | Double Breakout | M-13 | Match |
+| D-04 | Wall Ball | N-14 | Tetris |
+| E-05 | Race | O-15 | Pong |
+| F-06 | Highway | P-16 | Dodge |
+| G-07 | Tunnel | Q-17 | Pinball |
+| H-08 | Shoot | R-18 | Maze |
+| I-09 | Stack Shoot | S-19 | Bomber |
+| J-10 | Invaders | T-20 | Pentris |
 
-Menu hiển thị ký tự A–N trên board, icon 4×4 trong preview và demo động của mode đang chọn.
+## Controls
 
-## Giao diện
-
-### 320×240
-
-- Board 110×220 nằm bên trái.
-- Panel 180 pixel bên phải chứa mã chương trình, tên game, preview, score, speed, level, life, sound, pause và hướng dẫn phím.
-- Không scale asset, không dùng font hệ thống.
-
-### 240×320
-
-- Board và panel trạng thái nằm ở nửa trên.
-- Hướng dẫn điều khiển được đưa xuống footer để không ép nhỏ board.
-
-Toàn bộ text giao diện được vẽ bằng `BitmapFont`, trích từ face `Regular7` của project `NarutoBattleSymbian`. Glyph được lưu dạng row bitmask 11 pixel nên kết quả không phụ thuộc font trên từng máy Nokia.
-
-Digit score/speed/level, icon sound và pause vẫn dùng bitmap resource gốc.
-
-## Điều khiển
-
-### Menu
-
-- `4` / trái: game trước.
-- `6` / phải: game sau.
-- `2` / lên: tăng speed `0–15`.
-- `8` / xuống: tăng level `0–15`.
-- `5` / Fire: bắt đầu.
-- `*`: đổi trạng thái sound.
-
-### Trong game
-
-- `2`, `4`, `6`, `8`: di chuyển hoặc thao tác theo game.
-- `5`: fire, rotate hoặc advance.
+- D-pad or `2`, `4`, `6`, `8`: move or select.
+- Fire or `5`: start, rotate, shoot or game-specific action.
 - `0`: pause/resume.
-- `#`: về menu.
-- `*`: đổi trạng thái sound.
+- `#`: return to program selector.
 
-Canvas không đăng ký soft-key command để Nokia không chừa command bar làm lệch layout fullscreen.
+Input repeat is generated internally so movement timing is stable across Nokia
+models. Tanks limits every tank to one active projectile and applies a shot
+cooldown.
 
-## Build
+## Source structure
+
+The physical source tree is grouped by responsibility while all classes remain
+in package `brickgame` to avoid public-accessor overhead on CLDC:
+
+```text
+src/brickgame/
+├── app/                 MIDlet, Canvas and frame loop
+├── core/                engine, menu, catalog, preview, snapshot and pools
+├── data/                Snake map loader
+├── ui/                  bitmap fonts, adaptive layout and LCD renderer
+└── games/
+    ├── action/          Tanks, Shoot, Stack Shoot, Invaders, Bomber
+    ├── block/           Breakout, Wall Ball, Match, Tetris/Pentris
+    ├── classic/         Snake, Frogger, Pong, Pinball, Maze
+    └── driving/         Race, Highway, Tunnel, Dodge
+```
+
+Adding a program is localized to:
+
+1. A game class under the appropriate `games/` group.
+2. Metadata/factory entry in `core/GameCatalog.java`.
+3. A representative selector snapshot in `core/GamePreview.java`.
+
+The board uses twenty `short` row masks and the 4×4 runtime preview uses four
+`byte` row masks. Snapshots are copied and frames are redrawn only when the
+revision changes. Static LCD grids and labels are cached in a mutable MIDP image
+when memory permits. Gameplay and selector hot paths use fixed buffers instead
+of allocating temporary arrays.
+
+## CLDC 1.0 build
 
 ```sh
 cd /Users/duypham/Developer/BrickGame
 sh build-j2me.sh
 ```
 
-Output:
+Outputs:
+
+- `dist/BrickGame.jar`
+- `dist/BrickGame.jad`
+
+Both manifest and JAD declare:
 
 ```text
-dist/BrickGame.jar
-dist/BrickGame.jad
+MicroEdition-Configuration: CLDC-1.0
+MicroEdition-Profile: MIDP-2.0
 ```
 
-Build pipeline:
+The local SDK only provides a CLDC 1.1 API jar, so the default build uses it as
+a compile-time superset and then applies a strict CLDC 1.0 guard. The build
+fails on:
 
-1. `javac --release 8` compile source.
-2. ProGuard chuyển bytecode xuống Java 1.1.
-3. Tạo CLDC `StackMap`.
-4. Đóng gói resource và manifest.
-5. Kiểm tra JAR không còn class literal gây `VerifyError` trên KVM/MicroEmulator cũ.
+- Float/double bytecode.
+- `Float`, `Double`, reference or math classes unavailable in CLDC 1.0.
+- Java classes outside the explicit CLDC 1.0 whitelist.
+- Old-KVM-incompatible class literals.
 
-Có thể thay đường dẫn SDK bằng `CLDC_JAR`, `MIDP_JAR` và `PROGUARD_JAR`.
-
-## Test
+A real CLDC 1.0 API jar can be supplied directly:
 
 ```sh
-CLDC=/Users/duypham/Developer/MIDPlay/lib/cldc_1.1.jar
-MIDP=/Users/duypham/Developer/MIDPlay/lib/midp_2.0.jar
-
-mkdir -p build/test
-javac --release 8 -encoding UTF-8 \
-  -classpath "$CLDC:$MIDP:build/j2me/classes" \
-  -d build/test test/brickgame/EngineSmokeTest.java
-
-java -cp "build/j2me/classes:build/test:resources" \
-  brickgame.EngineSmokeTest
+CLDC_JAR=/path/to/cldc_1.0.jar \
+MIDP_JAR=/path/to/midp_2.0.jar \
+PROGUARD_JAR=/path/to/proguard.jar \
+sh build-j2me.sh
 ```
 
-Smoke test hiện kiểm tra:
+ProGuard converts the classes to Java 1.1 format and writes CLDC `StackMap`
+attributes.
 
-- Menu A–N và wrap hai chiều.
-- Board/preview menu của đủ 14 mode.
-- Khởi tạo và tick đủ 14 game.
-- Speed/level wrap `15 → 0`.
-- Class version 45 và CLDC StackMap.
-- Không tham chiếu AWT, Swing, Stream API, reflection hoặc concurrent API.
-- Khởi động bằng MicroEmulator ở `320×240` với strict app classloader.
+## Tests
 
-## Nguồn và giấy phép
-
-Phần lõi Snake, Race, Tetris, Shoot, Tanks và LCD asset bắt nguồn từ `Brick-Game-9999-in-1` của Vitaliy Boyarsky.
-
-Các chương trình Breakout, Double, Wall Ball, Highway, Tunnel, Stack, Invaders, Frogger và Match được chuyển sang CLDC từ luật chơi và dữ liệu level của `Simple-Brick-Games` của Tobias Bielefeld, phát hành theo GPL-3.0-or-later.
-
-Xem `THIRD_PARTY_NOTICES.md` và `LICENSE` trước khi phân phối bản build.
+```sh
+rm -rf build/test
+mkdir -p build/test
+javac --release 8 -encoding UTF-8 \
+  -classpath /Users/duypham/Developer/MIDPlay/lib/cldc_1.1.jar:/Users/duypham/Developer/MIDPlay/lib/midp_2.0.jar \
+  -d build/test $(find src test -name '*.java' -print)
+java -cp build/test:resources brickgame.EngineSmokeTest
+java -cp build/test:resources brickgame.LongRunSmokeTest
+java -cp build/test:resources brickgame.LayoutBoundsTest
+java -cp build/test:resources brickgame.PreviewRegressionTest
+```
