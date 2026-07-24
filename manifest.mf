@@ -1,0 +1,7 @@
+Manifest-Version: 1.0
+MIDlet-Name: BrickGame
+MIDlet-Version: 1.0.0
+MIDlet-Vendor: BrickGame Port
+MIDlet-1: Brick Game, , brickgame.Midlet
+MicroEdition-Configuration: CLDC-1.1
+MicroEdition-Profile: MIDP-2.0
