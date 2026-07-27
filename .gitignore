@@ -66,9 +66,15 @@ Temporary Items
 build/
 nbbuild/
 dist/
+!dist/
+dist/*
+!dist/BrickGame.jar
+!dist/BrickGame.jad
 nbdist/
 .nb-gradle/
 # End of https://www.toptal.com/developers/gitignore/api/java,netbeans,macos
 
+__pycache__/
+*.pyc
 out.map
 google-java-format

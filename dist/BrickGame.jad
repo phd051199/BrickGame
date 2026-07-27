@@ -1,8 +1,9 @@
-Manifest-Version: 1.0
 MIDlet-Name: BrickGame
 MIDlet-Version: 2.6.1
 MIDlet-Vendor: Duy Pham
 MIDlet-1: Brick ROM Emulator, , brickgame.Midlet
 MicroEdition-Configuration: CLDC-1.1
 MicroEdition-Profile: MIDP-2.0
+MIDlet-Jar-URL: BrickGame.jar
+MIDlet-Jar-Size: 124686
 Nokia-MIDlet-App-Orientation: landscape

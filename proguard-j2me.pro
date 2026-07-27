@@ -1,5 +1,4 @@
 # Convert modern javac output to CLDC-compatible Java 1.1 class files.
--dontshrink
 -dontoptimize
 -dontobfuscate
 -target 1.1
