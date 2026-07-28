@@ -1,12 +1,12 @@
-# Runtime assets
+# E23 assets
 
-The `runtime-assets.b64.part*` files form one validated base64-encoded archive used by `build-j2me.sh`.
+The four `e23-assets.part*` files form one validated base64 archive used by `build-e23.sh`.
 
-The archive contains:
+The build extracts only:
 
-- 10 program ROMs;
-- 10 compact playfield maps;
-- two bitmap UI fonts;
-- source LCD layouts retained as vendored reference data.
+- E23 program ROM
+- E23 LCD map
+- regular bitmap font
+- bold bitmap font
 
-The MIDlet packages only the ROMs, playfield maps and bitmap fonts. The build does not read from another repository or from an older distribution JAR.
+No other ROM, LCD layout or CPU asset is stored in the runtime bundle.
