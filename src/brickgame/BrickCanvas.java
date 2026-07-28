@@ -246,26 +246,6 @@ final class BrickCanvas extends GameCanvas implements Runnable {
             return;
         }
         renderer.render(graphics, profile, cpu, map, paused, width, height);
-        if (paused) {
-            drawPauseOverlay(graphics, width, height);
-        }
-    }
-
-    private void drawPauseOverlay(Graphics graphics, int width, int height) {
-        int boxWidth = 176;
-        int boxHeight = 72;
-        int x = (width - boxWidth) / 2;
-        int y = (height - boxHeight) / 2;
-        graphics.setColor(0x000000);
-        graphics.fillRect(x, y, boxWidth, boxHeight);
-        graphics.setColor(0xFFFFFF);
-        Font oldFont = graphics.getFont();
-        graphics.setFont(Font.getFont(Font.FACE_SYSTEM, Font.STYLE_BOLD, Font.SIZE_MEDIUM));
-        drawCentered(graphics, "PAUSED", width, y + 7);
-        graphics.setFont(Font.getDefaultFont());
-        drawCentered(graphics, "ENTER: RESUME", width, y + 34);
-        drawCentered(graphics, "RIGHT SOFTKEY: MENU", width, y + 51);
-        graphics.setFont(oldFont);
     }
 
     private void paintLoading() {

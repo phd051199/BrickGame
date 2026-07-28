@@ -19,8 +19,8 @@ final class LcdGridRenderer {
 
     static void drawBoardGrid(Graphics graphics, LayoutMetrics layout) {
         graphics.setColor(COLOR_INK);
-        graphics.fillRect(layout.boardX - 2, layout.boardY - 2,
-                layout.boardWidth + 4, layout.boardHeight + 4);
+        graphics.fillRect(layout.boardX - 1, layout.boardY - 1,
+                layout.boardWidth + 2, layout.boardHeight + 2);
         graphics.setColor(COLOR_LCD);
         graphics.fillRect(layout.boardX, layout.boardY,
                 layout.boardWidth, layout.boardHeight);
@@ -89,7 +89,7 @@ final class LcdGridRenderer {
         if (interior < 1) {
             interior = 1;
         }
-        int core = cell / 3 + 1;
+        int core = active ? cell / 2 : cell / 3;
         if (core < 2) {
             core = 2;
         }
@@ -99,7 +99,7 @@ final class LcdGridRenderer {
         if (core > interior) {
             core = interior;
         }
-        int coreOffset = gap + 1 + (interior - core) / 2;
+        int coreOffset = gap + 1 + (interior - core + 1) / 2;
         graphics.fillRect(x + coreOffset, y + coreOffset, core, core);
     }
 }

@@ -5,5 +5,5 @@ MIDlet-1: Brick ROM Emulator, , brickgame.Midlet
 MicroEdition-Configuration: CLDC-1.1
 MicroEdition-Profile: MIDP-2.0
 MIDlet-Jar-URL: BrickGame.jar
-MIDlet-Jar-Size: 124686
+MIDlet-Jar-Size: 125426
 Nokia-MIDlet-App-Orientation: landscape

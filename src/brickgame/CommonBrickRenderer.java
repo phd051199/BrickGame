@@ -53,7 +53,7 @@ final class CommonBrickRenderer {
         map.decode(cpu.vram(), cpu.displayEnabled(), board, preview);
         LcdGridRenderer.drawActiveBoard(graphics, board, layout);
         LcdGridRenderer.drawActivePreview(graphics, preview,
-                previewLeft(layout), layout.panelY + 70, layout.previewCell);
+                previewLeft(layout), previewTop(layout), layout.previewCell);
         drawPanel(graphics, profile, cpu, paused);
         if (width == 320 && height == 240) {
             drawDeviceStatus(graphics, System.currentTimeMillis());
@@ -84,6 +84,11 @@ final class CommonBrickRenderer {
         LcdGridRenderer.drawCase(graphics, metrics);
         LcdGridRenderer.drawBoardGrid(graphics, metrics);
 
+        if (isE72(metrics)) {
+            drawE72Static(graphics, metrics);
+            return;
+        }
+
         regularFont.drawString(graphics, "BRICK GAME", metrics.panelX + 4,
                 metrics.panelY + 11, Graphics.LEFT,
                 LcdGridRenderer.COLOR_INK);
@@ -98,7 +103,7 @@ final class CommonBrickRenderer {
                 metrics.panelY + 62, Graphics.HCENTER,
                 LcdGridRenderer.COLOR_INK);
         LcdGridRenderer.drawPreviewGrid(graphics, previewLeft,
-                metrics.panelY + 70, metrics.previewCell);
+                previewTop(metrics), metrics.previewCell);
 
         int statsX = statsX(metrics);
         regularFont.drawString(graphics, "SCORE", statsX,
@@ -110,28 +115,69 @@ final class CommonBrickRenderer {
         regularFont.drawString(graphics, "LEVEL", statsX,
                 metrics.panelY + 146, Graphics.LEFT,
                 LcdGridRenderer.COLOR_INK);
+    }
 
-        if (metrics.screenWidth == 320 && metrics.screenHeight == 240) {
-            int railRight = metrics.statusX + metrics.statusWidth - 1;
-            graphics.setColor(LcdGridRenderer.COLOR_SHADOW);
-            graphics.drawLine(metrics.statusX, metrics.boardY + 63,
-                    railRight, metrics.boardY + 63);
-            graphics.drawLine(metrics.statusX, metrics.boardY + 121,
-                    railRight, metrics.boardY + 121);
-            regularFont.drawString(graphics, "BAT", metrics.statusCenter,
-                    metrics.boardY + 11, Graphics.HCENTER,
-                    LcdGridRenderer.COLOR_INK);
-            regularFont.drawString(graphics, "TIME", metrics.statusCenter,
-                    metrics.boardY + 76, Graphics.HCENTER,
-                    LcdGridRenderer.COLOR_INK);
-            regularFont.drawString(graphics, "UP", metrics.statusCenter,
-                    metrics.boardY + 137, Graphics.HCENTER,
-                    LcdGridRenderer.COLOR_INK);
-        }
+    private void drawE72Static(Graphics graphics, LayoutMetrics metrics) {
+        boldFont.drawString(graphics, "BRICK GAME", metrics.panelCenter,
+                metrics.panelY + 16, Graphics.HCENTER,
+                LcdGridRenderer.COLOR_INK);
+
+        graphics.setColor(LcdGridRenderer.COLOR_SHADOW);
+        graphics.drawLine(metrics.panelX + 4, metrics.panelY + 53,
+                metrics.panelX + metrics.panelWidth - 5, metrics.panelY + 53);
+
+        int previewCenter = previewCenter(metrics);
+        int statsCenter = statsCenter(metrics);
+        regularFont.drawString(graphics, "NEXT", previewCenter,
+                metrics.panelY + 69, Graphics.HCENTER,
+                LcdGridRenderer.COLOR_INK);
+        LcdGridRenderer.drawPreviewGrid(graphics, previewLeft(metrics),
+                previewTop(metrics), metrics.previewCell);
+        regularFont.drawString(graphics, "SCORE", statsCenter,
+                metrics.panelY + 69, Graphics.HCENTER,
+                LcdGridRenderer.COLOR_INK);
+        regularFont.drawString(graphics, "SPEED", statsCenter,
+                metrics.panelY + 112, Graphics.HCENTER,
+                LcdGridRenderer.COLOR_INK);
+        regularFont.drawString(graphics, "LEVEL", statsCenter,
+                metrics.panelY + 155, Graphics.HCENTER,
+                LcdGridRenderer.COLOR_INK);
+
+        graphics.setColor(LcdGridRenderer.COLOR_SHADOW);
+        graphics.drawLine(metrics.panelX + 4, metrics.panelY + 184,
+                metrics.panelX + metrics.panelWidth - 5, metrics.panelY + 184);
+        regularFont.drawString(graphics, "LSK PAUSE", metrics.panelCenter,
+                metrics.panelY + 203, Graphics.HCENTER,
+                LcdGridRenderer.COLOR_INK);
+        regularFont.drawString(graphics, "RSK MENU", metrics.panelCenter,
+                metrics.panelY + 220, Graphics.HCENTER,
+                LcdGridRenderer.COLOR_INK);
+
+        int railLeft = metrics.statusX + 4;
+        int railRight = metrics.statusX + metrics.statusWidth - 5;
+        graphics.setColor(LcdGridRenderer.COLOR_SHADOW);
+        graphics.drawLine(railLeft, metrics.panelY + 76,
+                railRight, metrics.panelY + 76);
+        graphics.drawLine(railLeft, metrics.panelY + 156,
+                railRight, metrics.panelY + 156);
+        regularFont.drawString(graphics, "BAT", metrics.statusCenter,
+                metrics.panelY + 15, Graphics.HCENTER,
+                LcdGridRenderer.COLOR_INK);
+        regularFont.drawString(graphics, "TIME", metrics.statusCenter,
+                metrics.panelY + 95, Graphics.HCENTER,
+                LcdGridRenderer.COLOR_INK);
+        regularFont.drawString(graphics, "UP", metrics.statusCenter,
+                metrics.panelY + 175, Graphics.HCENTER,
+                LcdGridRenderer.COLOR_INK);
     }
 
     private void drawPanel(Graphics graphics, MachineProfile profile,
             BrickCpu cpu, boolean paused) {
+        if (isE72(layout)) {
+            drawE72Panel(graphics, profile, cpu, paused);
+            return;
+        }
+
         regularFont.drawString(graphics, coreName(profile.coreType),
                 layout.panelX + layout.panelWidth - 4, layout.panelY + 11,
                 Graphics.RIGHT, LcdGridRenderer.COLOR_INK);
@@ -165,8 +211,54 @@ final class CommonBrickRenderer {
                 LcdGridRenderer.COLOR_INK);
     }
 
+    private void drawE72Panel(Graphics graphics, MachineProfile profile,
+            BrickCpu cpu, boolean paused) {
+        regularFont.drawString(graphics, coreName(profile.coreType),
+                layout.panelCenter, layout.panelY + 31,
+                Graphics.HCENTER, LcdGridRenderer.COLOR_INK);
+        drawFitted(graphics, profile.name, layout.panelCenter,
+                layout.panelY + 46, layout.panelWidth - 8, false);
+
+        byte[] vram = cpu.vram();
+        int statsCenter = statsCenter(layout);
+        int score = LcdHudDecoder.score(profile, vram);
+        int scoreDigits = LcdHudDecoder.scoreDigits(profile);
+        drawValueCentered(graphics, score, scoreDigits, statsCenter,
+                layout.panelY + 76);
+        drawValueCentered(graphics, LcdHudDecoder.speed(profile, vram), 2,
+                statsCenter, layout.panelY + 119);
+        drawValueCentered(graphics, LcdHudDecoder.level(profile, vram), 2,
+                statsCenter, layout.panelY + 162);
+
+        regularFont.drawString(graphics, paused ? "PAUSED" : "RUNNING",
+                previewCenter(layout), layout.panelY + 139,
+                Graphics.HCENTER, LcdGridRenderer.COLOR_INK);
+    }
+
+    private static boolean isE72(LayoutMetrics metrics) {
+        return metrics.screenWidth == 320 && metrics.screenHeight == 240;
+    }
+
+    private static int previewCenter(LayoutMetrics metrics) {
+        if (isE72(metrics)) {
+            return metrics.panelX + metrics.panelWidth / 4;
+        }
+        return metrics.panelX + 6 + metrics.previewCell * 2;
+    }
+
     private static int previewLeft(LayoutMetrics metrics) {
-        return metrics.panelX + 6;
+        return previewCenter(metrics) - metrics.previewCell * 2;
+    }
+
+    private static int previewTop(LayoutMetrics metrics) {
+        return metrics.panelY + (isE72(metrics) ? 76 : 70);
+    }
+
+    private int statsCenter(LayoutMetrics metrics) {
+        int center = metrics.panelX + metrics.panelWidth * 3 / 4;
+        int maximum = metrics.panelX + metrics.panelWidth - 4
+                - numberFont.width(6) / 2;
+        return center < maximum ? center : maximum;
     }
 
     private int statsX(LayoutMetrics metrics) {
@@ -181,6 +273,17 @@ final class CommonBrickRenderer {
             return;
         }
         numberFont.draw(graphics, value, digits, x, y,
+                LcdGridRenderer.COLOR_INK);
+    }
+
+    private void drawValueCentered(Graphics graphics, int value, int digits,
+            int center, int y) {
+        if (value < 0 || digits <= 0) {
+            regularFont.drawString(graphics, "--", center, y + 10,
+                    Graphics.HCENTER, LcdGridRenderer.COLOR_INK);
+            return;
+        }
+        numberFont.drawCentered(graphics, value, digits, center, y,
                 LcdGridRenderer.COLOR_INK);
     }
 
@@ -213,18 +316,22 @@ final class CommonBrickRenderer {
 
     private void drawDeviceStatus(Graphics graphics, long now) {
         updateBattery(now);
-        int batteryTop = layout.boardY + 27;
-        drawBattery(graphics, layout.statusCenter - 9, batteryTop, batteryPercent);
-        regularFont.drawString(graphics, batteryText(batteryPercent),
-                layout.statusCenter, layout.boardY + 54,
-                Graphics.HCENTER, LcdGridRenderer.COLOR_INK);
+        if (batteryPercent < 0) {
+            regularFont.drawString(graphics, "--", layout.statusCenter,
+                    layout.panelY + 32, Graphics.HCENTER,
+                    LcdGridRenderer.COLOR_INK);
+        } else {
+            int batteryDigits = batteryPercent >= 100 ? 3 : 2;
+            numberFont.drawCentered(graphics, batteryPercent, batteryDigits,
+                    layout.statusCenter, layout.panelY + 22,
+                    LcdGridRenderer.COLOR_INK);
+        }
 
         Calendar calendar = Calendar.getInstance();
-        regularFont.drawString(graphics,
-                timeText(calendar.get(Calendar.HOUR_OF_DAY),
-                        calendar.get(Calendar.MINUTE)),
-                layout.statusCenter, layout.boardY + 102,
-                Graphics.HCENTER, LcdGridRenderer.COLOR_INK);
+        numberFont.drawClockCentered(graphics,
+                calendar.get(Calendar.HOUR_OF_DAY),
+                calendar.get(Calendar.MINUTE), layout.statusCenter,
+                layout.panelY + 102, LcdGridRenderer.COLOR_INK);
 
         long elapsed = now - startedAt;
         if (elapsed < 0L) {
@@ -235,25 +342,9 @@ final class CommonBrickRenderer {
         if (hours > 99) {
             hours = 99;
         }
-        regularFont.drawString(graphics, timeText(hours, minutes % 60),
-                layout.statusCenter, layout.boardY + 162,
-                Graphics.HCENTER, LcdGridRenderer.COLOR_INK);
-    }
-
-    private static void drawBattery(Graphics graphics, int x, int y, int percent) {
-        graphics.setColor(LcdGridRenderer.COLOR_SHADOW);
-        graphics.drawRect(x, y, 16, 8);
-        graphics.fillRect(x + 17, y + 2, 2, 5);
-        if (percent < 0) {
-            graphics.drawLine(x + 4, y + 4, x + 12, y + 4);
-            return;
-        }
-        int fill = percent * 13 / 100;
-        if (fill < 1 && percent > 0) {
-            fill = 1;
-        }
-        graphics.setColor(LcdGridRenderer.COLOR_INK);
-        graphics.fillRect(x + 2, y + 2, fill, 5);
+        numberFont.drawClockCentered(graphics, hours, minutes % 60,
+                layout.statusCenter, layout.panelY + 182,
+                LcdGridRenderer.COLOR_INK);
     }
 
     private void updateBattery(long now) {
