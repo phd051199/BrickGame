@@ -44,6 +44,7 @@ final class E23Renderer {
     private final Calendar clockCalendar = Calendar.getInstance();
     private final Date clockDate = new Date();
     private long countdownStartedAt = -1L;
+    private boolean gameplayStarted;
 
     private Image background;
     private int backgroundWidth = -1;
@@ -82,7 +83,13 @@ final class E23Renderer {
     }
 
     void restartCountdown() {
+        gameplayStarted = true;
         countdownStartedAt = System.currentTimeMillis();
+    }
+
+    void resetRuntimeState() {
+        gameplayStarted = false;
+        countdownStartedAt = -1L;
     }
 
     boolean countdownActive(long now) {
@@ -383,30 +390,34 @@ final class E23Renderer {
     }
 
     private void drawRuntimePanel(Graphics graphics, byte[] lcdRam, boolean paused) {
+        int score = gameplayStarted ? decodeNumber(lcdRam, SCORE_SEGMENTS) : 0;
+        int speed = decodeTwoDigits(lcdRam, SPEED_SEGMENTS, (short) 1618);
+        int level = decodeTwoDigits(lcdRam, LEVEL_SEGMENTS, (short) 1682);
+        if (speed < 0) {
+            speed = 0;
+        }
+        if (level < 0) {
+            level = 0;
+        }
+        String state = paused ? "PAUSED" : gameplayStarted ? "RUNNING" : "READY";
+
         if (portrait) {
-            regularFont.drawString(graphics, paused ? "PAUSED" : "RUNNING",
+            regularFont.drawString(graphics, state,
                     nextCenter, portraitTop + 118,
                     Graphics.HCENTER, INK_COLOR);
-            drawNumber(graphics, decodeNumber(lcdRam, SCORE_SEGMENTS), 4,
+            drawNumber(graphics, score, 4,
                     statsCenter, portraitStatsTop + 22);
-            drawNumber(graphics,
-                    decodeTwoDigits(lcdRam, SPEED_SEGMENTS, (short) 1618), 2,
+            drawNumber(graphics, speed, 2,
                     statsCenter, portraitStatsTop + 54);
-            drawNumber(graphics,
-                    decodeTwoDigits(lcdRam, LEVEL_SEGMENTS, (short) 1682), 2,
+            drawNumber(graphics, level, 2,
                     statsCenter, portraitStatsTop + 86);
             return;
         }
 
-        drawNumber(graphics, decodeNumber(lcdRam, SCORE_SEGMENTS), 4,
-                statsCenter, panelY + 72);
-        drawNumber(graphics,
-                decodeTwoDigits(lcdRam, SPEED_SEGMENTS, (short) 1618), 2,
-                statsCenter, panelY + 115);
-        drawNumber(graphics,
-                decodeTwoDigits(lcdRam, LEVEL_SEGMENTS, (short) 1682), 2,
-                statsCenter, panelY + 158);
-        regularFont.drawString(graphics, paused ? "PAUSED" : "RUNNING",
+        drawNumber(graphics, score, 4, statsCenter, panelY + 72);
+        drawNumber(graphics, speed, 2, statsCenter, panelY + 115);
+        drawNumber(graphics, level, 2, statsCenter, panelY + 158);
+        regularFont.drawString(graphics, state,
                 nextCenter, panelY + 135, Graphics.HCENTER, INK_COLOR);
     }
 

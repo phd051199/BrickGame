@@ -70,7 +70,7 @@ done
 JAR_SIZE=$(wc -c < "$FINAL_JAR" | tr -d ' ')
 cat > "$FINAL_JAD" <<EOF
 MIDlet-Name: E23 96 in 1
-MIDlet-Version: 3.2.7
+MIDlet-Version: 3.2.8
 MIDlet-Vendor: Duy Pham
 MIDlet-1: E23 96 in 1, /e23-icon.png, e23.E23Midlet
 MIDlet-Icon: /e23-icon.png

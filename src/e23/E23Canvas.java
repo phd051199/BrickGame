@@ -28,6 +28,9 @@ final class E23Canvas extends GameCanvas implements Runnable {
     private long previousCpuTime;
     private long cycleFraction;
     private int cycleOvershoot;
+    private final boolean[] inputDown = new boolean[E23Cpu.BUTTON_COUNT];
+    private final boolean[] inputSeen = new boolean[E23Cpu.BUTTON_COUNT];
+    private final boolean[] inputReleasePending = new boolean[E23Cpu.BUTTON_COUNT];
 
     E23Canvas(E23Midlet app) {
         super(false);
@@ -124,13 +127,20 @@ final class E23Canvas extends GameCanvas implements Runnable {
             }
         }
 
-        while (budget > 0) {
-            int slice = budget > CPU_SLICE ? CPU_SLICE : budget;
-            int consumed = cpu.runCycles(slice);
-            if (consumed <= 0) {
-                break;
+        boolean advanced = false;
+        synchronized (this) {
+            while (budget > 0) {
+                int slice = budget > CPU_SLICE ? CPU_SLICE : budget;
+                int consumed = cpu.runCycles(slice);
+                if (consumed <= 0) {
+                    break;
+                }
+                advanced = true;
+                budget -= consumed;
             }
-            budget -= consumed;
+            if (advanced) {
+                completeInputFrame();
+            }
         }
         if (budget < 0) {
             cycleOvershoot = -budget;
@@ -316,11 +326,17 @@ final class E23Canvas extends GameCanvas implements Runnable {
         }
         int button = mapKey(keyCode);
         if (button >= 0 && cpu != null) {
-            if (button == E23Cpu.BUTTON_START && renderer != null) {
-                renderer.restartCountdown();
-                redraw = true;
+            if (renderer != null) {
+                if (button == E23Cpu.BUTTON_START) {
+                    renderer.restartCountdown();
+                    redraw = true;
+                } else if (button == E23Cpu.BUTTON_AUX
+                        || button == E23Cpu.BUTTON_RESET) {
+                    renderer.resetRuntimeState();
+                    redraw = true;
+                }
             }
-            cpu.setButton(button, true);
+            pressButton(button);
         }
     }
 
@@ -330,7 +346,7 @@ final class E23Canvas extends GameCanvas implements Runnable {
         }
         int button = mapKey(keyCode);
         if (button >= 0) {
-            cpu.setButton(button, false);
+            releaseButton(button);
         }
     }
 
@@ -392,12 +408,57 @@ final class E23Canvas extends GameCanvas implements Runnable {
         return keyCode == -7 || keyCode == -22;
     }
 
-    private void releaseButtons() {
+    private synchronized void pressButton(int button) {
+        if (cpu == null || inputDown[button]) {
+            return;
+        }
+        inputDown[button] = true;
+        inputSeen[button] = false;
+        inputReleasePending[button] = false;
+        cpu.setButton(button, true);
+    }
+
+    private synchronized void releaseButton(int button) {
+        if (cpu == null || !inputDown[button]) {
+            return;
+        }
+        if (!inputSeen[button]) {
+            inputReleasePending[button] = true;
+            return;
+        }
+        cpu.setButton(button, false);
+        inputDown[button] = false;
+        inputSeen[button] = false;
+        inputReleasePending[button] = false;
+    }
+
+    private synchronized void completeInputFrame() {
         if (cpu == null) {
             return;
         }
         for (int i = 0; i < E23Cpu.BUTTON_COUNT; i++) {
-            cpu.setButton(i, false);
+            if (!inputDown[i]) {
+                continue;
+            }
+            if (inputReleasePending[i]) {
+                cpu.setButton(i, false);
+                inputDown[i] = false;
+                inputSeen[i] = false;
+                inputReleasePending[i] = false;
+            } else {
+                inputSeen[i] = true;
+            }
+        }
+    }
+
+    private synchronized void releaseButtons() {
+        for (int i = 0; i < E23Cpu.BUTTON_COUNT; i++) {
+            if (cpu != null && inputDown[i]) {
+                cpu.setButton(i, false);
+            }
+            inputDown[i] = false;
+            inputSeen[i] = false;
+            inputReleasePending[i] = false;
         }
     }
 }
