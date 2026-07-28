@@ -89,16 +89,28 @@ final class E23Cpu {
         buttons[button] = down;
         int port = BUTTON_PORTS[button];
         int pin = BUTTON_PINS[button];
-        if (down) {
-            if (port == PORT_RESET) {
+        if (port == PORT_RESET) {
+            if (down) {
                 resetRegistersForResetPin();
                 resetLine = true;
-            } else if (halted && port == PORT_PS && pin == 2) {
-                externalFlag = 1;
-                halted = false;
+            } else {
+                resetLine = false;
             }
+            return;
         }
-        recomputeInputPorts();
+
+        int bit = 1 << pin;
+        if (port == PORT_PP) {
+            pp = down ? pp & ~bit : pp | bit;
+        } else if (port == PORT_PM) {
+            pm = down ? pm & ~bit : pm | bit;
+        } else {
+            ps = down ? ps & ~bit : ps | bit;
+        }
+        if (down && halted && port == PORT_PS && pin == 2) {
+            externalFlag = 1;
+            halted = false;
+        }
     }
 
     private void resetRegistersForResetPin() {
@@ -120,66 +132,40 @@ final class E23Cpu {
         timerCounter = 0;
         timerClockCounter = 0;
         pa = 0;
-    }
-
-    private void recomputeInputPorts() {
         pp = 15;
         pm = 15;
         ps = 15;
-        boolean resetPressed = false;
-        for (int i = 0; i < buttons.length; i++) {
-            if (!buttons[i]) {
-                continue;
-            }
-            int port = BUTTON_PORTS[i];
-            int bit = 1 << BUTTON_PINS[i];
-            if (port == PORT_PP) {
-                pp &= ~bit;
-            } else if (port == PORT_PM) {
-                pm &= ~bit;
-            } else if (port == PORT_PS) {
-                ps &= ~bit;
-            } else if (port == PORT_RESET) {
-                resetPressed = true;
-            }
-        }
-        resetLine = resetPressed;
     }
 
     synchronized int runCycles(int budget) {
         int consumed = 0;
         while (consumed < budget) {
-            consumed += stepInstruction();
-        }
-        return consumed;
-    }
-
-    private int stepInstruction() {
-        if (!halted || resetLine) {
-            if (interruptEnable != 0 && stack == 0) {
-                if (externalFlag != 0) {
-                    externalFlag = 0;
-                    interrupt(EXTERNAL_INTERRUPT);
-                } else if (timerFlag != 0) {
-                    timerFlag = 0;
-                    interrupt(TIMER_INTERRUPT);
+            int cycles = 8;
+            if (!halted && !resetLine) {
+                if (interruptEnable != 0 && stack == 0) {
+                    if (externalFlag != 0) {
+                        externalFlag = 0;
+                        interrupt(EXTERNAL_INTERRUPT);
+                    } else if (timerFlag != 0) {
+                        timerFlag = 0;
+                        interrupt(TIMER_INTERRUPT);
+                    }
                 }
-            }
-            int opcode = readRom(pc);
-            int cycles = execute(opcode);
-            timerClockCounter -= cycles;
-            while (timerClockCounter <= 0) {
-                timerClockCounter += TIMER_DIV;
-                if (timerEnabled) {
-                    timerCounter = (timerCounter + 1) & 255;
-                    if (timerCounter == 0) {
-                        timerFlag = 1;
+                cycles = execute(rom[pc & 4095] & 255);
+                timerClockCounter -= cycles;
+                if (timerClockCounter <= 0) {
+                    timerClockCounter += TIMER_DIV;
+                    if (timerEnabled) {
+                        timerCounter = (timerCounter + 1) & 255;
+                        if (timerCounter == 0) {
+                            timerFlag = 1;
+                        }
                     }
                 }
             }
-            return cycles;
+            consumed += cycles;
         }
-        return 8;
+        return consumed;
     }
 
     private void interrupt(int location) {
@@ -187,64 +173,69 @@ final class E23Cpu {
         pc = (pc & 61440) | location;
     }
 
-    private int readRom(int address) {
-        return rom[address & 4095] & 255;
-    }
-
-    private int readRam(int registerPair) {
-        int address = (wr[registerPair + 1] << 4) | wr[registerPair];
-        return ram[address] & 15;
-    }
-
-    private void writeRam(int registerPair, int value) {
-        int address = (wr[registerPair + 1] << 4) | wr[registerPair];
-        ram[address] = (byte) (value & 15);
-    }
-
     private int execute(int opcode) {
         int value;
         int oldCarry;
         int low;
+        int group;
+        int address;
+        boolean condition;
 
         if (opcode >= 0x80 && opcode <= 0x9F) {
-            low = readRom(pc + 1);
+            low = rom[(pc + 1) & 4095] & 255;
             pc += 2;
             if ((acc & (1 << ((opcode >> 3) & 3))) != 0) {
                 pc = (pc & 0xF800) | ((opcode & 7) << 8) | low;
             }
             return 8;
         }
-        if (opcode >= 0xA0 && opcode <= 0xA7) {
-            return conditionalJump(opcode, wr[0] != 0, false);
-        }
-        if (opcode >= 0xA8 && opcode <= 0xAF) {
-            return conditionalJump(opcode, wr[1] != 0, false);
-        }
-        if (opcode >= 0xB0 && opcode <= 0xB7) {
-            return conditionalJump(opcode, acc == 0, false);
-        }
-        if (opcode >= 0xB8 && opcode <= 0xBF) {
-            return conditionalJump(opcode, acc != 0, false);
-        }
-        if (opcode >= 0xC0 && opcode <= 0xC7) {
-            return conditionalJump(opcode, carry != 0, false);
-        }
-        if (opcode >= 0xC8 && opcode <= 0xCF) {
-            return conditionalJump(opcode, carry == 0, false);
-        }
-        if (opcode >= 0xD0 && opcode <= 0xD7) {
-            return conditionalJump(opcode, timerFlag != 0, true);
-        }
-        if (opcode >= 0xD8 && opcode <= 0xDF) {
-            return conditionalJump(opcode, wr[4] != 0, false);
+        if (opcode >= 0xA0 && opcode <= 0xDF) {
+            group = (opcode - 0xA0) >> 3;
+            switch (group) {
+                case 0:
+                    condition = wr[0] != 0;
+                    break;
+                case 1:
+                    condition = wr[1] != 0;
+                    break;
+                case 2:
+                    condition = acc == 0;
+                    break;
+                case 3:
+                    condition = acc != 0;
+                    break;
+                case 4:
+                    condition = carry != 0;
+                    break;
+                case 5:
+                    condition = carry == 0;
+                    break;
+                case 6:
+                    condition = timerFlag != 0;
+                    break;
+                default:
+                    condition = wr[4] != 0;
+                    break;
+            }
+            low = rom[(pc + 1) & 4095] & 255;
+            pc += 2;
+            if (condition) {
+                pc = (pc & 0xF800) | ((opcode & 7) << 8) | low;
+                if (group == 6) {
+                    timerFlag = 0;
+                }
+            }
+            return 8;
         }
         if (opcode >= 0xE0 && opcode <= 0xEF) {
-            pc = (pc & 0xF000) | ((opcode & 15) << 8) | readRom(pc + 1);
+            pc = (pc & 0xF000) | ((opcode & 15) << 8)
+                    | (rom[(pc + 1) & 4095] & 255);
             return 8;
         }
         if (opcode >= 0xF0) {
             stack = (pc + 2) & 4095;
-            pc = (pc & 0xF000) | ((opcode & 15) << 8) | readRom(pc + 1);
+            pc = (pc & 0xF000) | ((opcode & 15) << 8)
+                    | (rom[(pc + 1) & 4095] & 255);
             return 8;
         }
 
@@ -272,59 +263,71 @@ final class E23Cpu {
                 pc++;
                 return 4;
             case 0x04:
-                acc = readRam(0);
+                address = (wr[1] << 4) | wr[0];
+                acc = ram[address] & 15;
                 pc++;
                 return 4;
             case 0x05:
-                writeRam(0, acc);
+                address = (wr[1] << 4) | wr[0];
+                ram[address] = (byte) acc;
                 pc++;
                 return 4;
             case 0x06:
-                acc = readRam(2);
+                address = (wr[3] << 4) | wr[2];
+                acc = ram[address] & 15;
                 pc++;
                 return 4;
             case 0x07:
-                writeRam(2, acc);
+                address = (wr[3] << 4) | wr[2];
+                ram[address] = (byte) acc;
                 pc++;
                 return 4;
             case 0x08:
-                value = acc + readRam(0) + carry;
+                address = (wr[1] << 4) | wr[0];
+                value = acc + (ram[address] & 15) + carry;
                 carry = value > 15 ? 1 : 0;
                 acc = value & 15;
                 pc++;
                 return 4;
             case 0x09:
-                value = acc + readRam(0);
+                address = (wr[1] << 4) | wr[0];
+                value = acc + (ram[address] & 15);
                 carry = value > 15 ? 1 : 0;
                 acc = value & 15;
                 pc++;
                 return 4;
             case 0x0A:
-                value = acc + ((~readRam(0)) & 15) + carry;
+                address = (wr[1] << 4) | wr[0];
+                value = acc + ((~ram[address]) & 15) + carry;
                 carry = value > 15 ? 1 : 0;
                 acc = value & 15;
                 pc++;
                 return 4;
             case 0x0B:
-                value = acc + ((~readRam(0)) & 15) + 1;
+                address = (wr[1] << 4) | wr[0];
+                value = acc + ((~ram[address]) & 15) + 1;
                 carry = value > 15 ? 1 : 0;
                 acc = value & 15;
                 pc++;
                 return 4;
             case 0x0C:
-                writeRam(0, readRam(0) + 1);
+                address = (wr[1] << 4) | wr[0];
+                ram[address] = (byte) ((ram[address] + 1) & 15);
                 pc++;
                 return 4;
             case 0x0D:
-                writeRam(0, readRam(0) - 1);
+                address = (wr[1] << 4) | wr[0];
+                ram[address] = (byte) ((ram[address] - 1) & 15);
                 pc++;
                 return 4;
             case 0x0E:
-                writeRam(2, readRam(2) + 1);
+                address = (wr[3] << 4) | wr[2];
+                ram[address] = (byte) ((ram[address] + 1) & 15);
                 pc++;
                 return 4;
             case 0x0F:
-                writeRam(2, readRam(2) - 1);
+                address = (wr[3] << 4) | wr[2];
+                ram[address] = (byte) ((ram[address] - 1) & 15);
                 pc++;
                 return 4;
             case 0x10:
@@ -346,27 +349,33 @@ final class E23Cpu {
                 pc++;
                 return 4;
             case 0x1A:
-                acc &= readRam(0);
+                address = (wr[1] << 4) | wr[0];
+                acc &= ram[address] & 15;
                 pc++;
                 return 4;
             case 0x1B:
-                acc ^= readRam(0);
+                address = (wr[1] << 4) | wr[0];
+                acc ^= ram[address] & 15;
                 pc++;
                 return 4;
             case 0x1C:
-                acc |= readRam(0);
+                address = (wr[1] << 4) | wr[0];
+                acc |= ram[address] & 15;
                 pc++;
                 return 4;
             case 0x1D:
-                writeRam(0, readRam(0) & acc);
+                address = (wr[1] << 4) | wr[0];
+                ram[address] = (byte) ((ram[address] & 15) & acc);
                 pc++;
                 return 4;
             case 0x1E:
-                writeRam(0, readRam(0) ^ acc);
+                address = (wr[1] << 4) | wr[0];
+                ram[address] = (byte) ((ram[address] & 15) ^ acc);
                 pc++;
                 return 4;
             case 0x1F:
-                writeRam(0, readRam(0) | acc);
+                address = (wr[1] << 4) | wr[0];
+                ram[address] = (byte) ((ram[address] & 15) | acc);
                 pc++;
                 return 4;
             case 0x20:
@@ -477,38 +486,38 @@ final class E23Cpu {
                 pc++;
                 return 4;
             case 0x40:
-                value = acc + (readRom(pc + 1) & 15);
+                value = acc + (rom[(pc + 1) & 4095] & 15);
                 carry = value > 15 ? 1 : 0;
                 acc = value & 15;
                 pc += 2;
                 return 8;
             case 0x41:
-                value = acc + ((~readRom(pc + 1)) & 15) + 1;
+                value = acc + ((~rom[(pc + 1) & 4095]) & 15) + 1;
                 carry = value > 15 ? 1 : 0;
                 acc = value & 15;
                 pc += 2;
                 return 8;
             case 0x42:
-                acc &= readRom(pc + 1) & 15;
+                acc &= rom[(pc + 1) & 4095] & 15;
                 pc += 2;
                 return 8;
             case 0x43:
-                acc ^= readRom(pc + 1) & 15;
+                acc ^= rom[(pc + 1) & 4095] & 15;
                 pc += 2;
                 return 8;
             case 0x44:
-                acc |= readRom(pc + 1) & 15;
+                acc |= rom[(pc + 1) & 4095] & 15;
                 pc += 2;
                 return 8;
             case 0x45:
                 pc += 2;
                 return 8;
             case 0x46:
-                wr[4] = readRom(pc + 1) & 15;
+                wr[4] = rom[(pc + 1) & 4095] & 15;
                 pc += 2;
                 return 8;
             case 0x47:
-                timerCounter = readRom(pc + 1);
+                timerCounter = rom[(pc + 1) & 4095] & 255;
                 pc += 2;
                 return 8;
             case 0x48:
@@ -525,38 +534,44 @@ final class E23Cpu {
                 return 4;
             case 0x4C:
                 pc++;
-                value = readRom((pc & 0xFF00) | (acc << 4) | readRam(0));
+                address = (wr[1] << 4) | wr[0];
+                value = rom[(pc & 0xFF00) | (acc << 4)
+                        | (ram[address] & 15)] & 255;
                 acc = value & 15;
                 wr[4] = (value >> 4) & 15;
                 return 8;
             case 0x4D:
                 pc++;
-                value = readRom((pc & 0xF000) | 0xF00 | (acc << 4) | readRam(0));
+                address = (wr[1] << 4) | wr[0];
+                value = rom[(pc & 0xF000) | 0xF00 | (acc << 4)
+                        | (ram[address] & 15)] & 255;
                 acc = value & 15;
                 wr[4] = (value >> 4) & 15;
                 return 8;
             case 0x4E:
                 pc++;
-                value = readRom((pc & 0xFF00) | (acc << 4) | wr[4]);
+                value = rom[(pc & 0xFF00) | (acc << 4) | wr[4]] & 255;
                 acc = value & 15;
-                writeRam(0, (value >> 4) & 15);
+                address = (wr[1] << 4) | wr[0];
+                ram[address] = (byte) ((value >> 4) & 15);
                 return 8;
             case 0x4F:
                 pc++;
-                value = readRom((pc & 0xF000) | 0xF00 | (acc << 4) | wr[4]);
+                value = rom[(pc & 0xF000) | 0xF00 | (acc << 4) | wr[4]] & 255;
                 acc = value & 15;
-                writeRam(0, (value >> 4) & 15);
+                address = (wr[1] << 4) | wr[0];
+                ram[address] = (byte) ((value >> 4) & 15);
                 return 8;
             default:
                 if (opcode >= 0x50 && opcode <= 0x5F) {
                     wr[0] = opcode & 15;
-                    wr[1] = readRom(pc + 1) & 15;
+                    wr[1] = rom[(pc + 1) & 4095] & 15;
                     pc += 2;
                     return 8;
                 }
                 if (opcode >= 0x60 && opcode <= 0x6F) {
                     wr[2] = opcode & 15;
-                    wr[3] = readRom(pc + 1) & 15;
+                    wr[3] = rom[(pc + 1) & 4095] & 15;
                     pc += 2;
                     return 8;
                 }
@@ -568,18 +583,6 @@ final class E23Cpu {
                 pc++;
                 return 4;
         }
-    }
-
-    private int conditionalJump(int opcode, boolean condition, boolean clearTimerFlag) {
-        int low = readRom(pc + 1);
-        pc += 2;
-        if (condition) {
-            pc = (pc & 0xF800) | ((opcode & 7) << 8) | low;
-            if (clearTimerFlag) {
-                timerFlag = 0;
-            }
-        }
-        return 8;
     }
 
     byte[] lcdRam() {

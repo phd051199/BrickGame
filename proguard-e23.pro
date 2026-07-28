@@ -1,4 +1,4 @@
--dontoptimize
+-optimizationpasses 3
 -target 1.1
 -microedition
 

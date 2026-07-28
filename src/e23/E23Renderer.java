@@ -1,6 +1,7 @@
 package e23;
 
 import java.util.Calendar;
+import java.util.Date;
 import javax.microedition.lcdui.Graphics;
 import javax.microedition.lcdui.Image;
 
@@ -36,6 +37,12 @@ final class E23Renderer {
     private final DigitFont digits = new DigitFont();
     private final short[] boardRows = new short[BOARD_ROWS];
     private final byte[] nextRows = new byte[4];
+    private final int[] boardColumns = new int[BOARD_COLUMNS];
+    private final int[] boardLines = new int[BOARD_ROWS];
+    private final int[] nextColumns = new int[4];
+    private final int[] nextLines = new int[4];
+    private final Calendar clockCalendar = Calendar.getInstance();
+    private final Date clockDate = new Date();
     private long countdownStartedAt = -1L;
 
     private Image background;
@@ -52,6 +59,12 @@ final class E23Renderer {
     private int panelWidth;
     private int panelCenter;
     private int nextCell;
+    private int boardBorderExtent;
+    private int boardCore;
+    private int boardOffset;
+    private int nextBorderExtent;
+    private int nextCore;
+    private int nextOffset;
     private int nextCenter;
     private int nextLeft;
     private int nextTop;
@@ -156,6 +169,35 @@ final class E23Renderer {
             statsCenter = 282;
             statusCenter = 33;
         }
+        configureCells();
+    }
+
+    private void configureCells() {
+        for (int column = 0; column < BOARD_COLUMNS; column++) {
+            boardColumns[column] = boardX + column * boardCell;
+        }
+        for (int row = 0; row < BOARD_ROWS; row++) {
+            boardLines[row] = boardY + row * boardCell;
+        }
+        for (int column = 0; column < 4; column++) {
+            nextColumns[column] = nextLeft + column * nextCell;
+            nextLines[column] = nextTop + column * nextCell;
+        }
+        boardBorderExtent = boardCell - 3;
+        boardCore = cellCore(boardCell);
+        boardOffset = 2 + (boardCell - 4 - boardCore) / 2;
+        nextBorderExtent = nextCell - 3;
+        nextCore = cellCore(nextCell);
+        nextOffset = 2 + (nextCell - 4 - nextCore) / 2;
+    }
+
+    private static int cellCore(int cell) {
+        int inside = cell - 4;
+        int core = inside / 2;
+        if (((inside - core) & 1) != 0) {
+            core++;
+        }
+        return core < 2 ? 2 : core;
     }
 
     private void drawBackground(Graphics graphics) {
@@ -179,8 +221,8 @@ final class E23Renderer {
         graphics.setColor(INACTIVE_COLOR);
         for (int row = 0; row < BOARD_ROWS; row++) {
             for (int column = 0; column < BOARD_COLUMNS; column++) {
-                drawCell(graphics, boardX + column * boardCell,
-                        boardY + row * boardCell, boardCell);
+                drawCell(graphics, boardColumns[column], boardLines[row],
+                        boardBorderExtent, boardCore, boardOffset);
             }
         }
     }
@@ -280,8 +322,8 @@ final class E23Renderer {
         graphics.setColor(INACTIVE_COLOR);
         for (int row = 0; row < 4; row++) {
             for (int column = 0; column < 4; column++) {
-                drawPreviewCell(graphics, nextLeft + column * nextCell,
-                        nextTop + row * nextCell, nextCell);
+                drawCell(graphics, nextColumns[column], nextLines[row],
+                        nextBorderExtent, nextCore, nextOffset);
             }
         }
         graphics.setColor(SHADOW_COLOR);
@@ -295,8 +337,8 @@ final class E23Renderer {
             int bits = boardRows[row] & 0xFFFF;
             for (int column = 0; column < BOARD_COLUMNS; column++) {
                 if ((bits & (1 << column)) != 0) {
-                    drawCell(graphics, boardX + column * boardCell,
-                            boardY + row * boardCell, boardCell);
+                    drawCell(graphics, boardColumns[column], boardLines[row],
+                            boardBorderExtent, boardCore, boardOffset);
                 }
             }
         }
@@ -327,45 +369,16 @@ final class E23Renderer {
             }
             for (int column = 0; column < 4; column++) {
                 if ((bits & (1 << column)) != 0) {
-                    drawPreviewCell(graphics, nextLeft + column * nextCell,
-                            nextTop + targetRow * nextCell, nextCell);
+                    drawCell(graphics, nextColumns[column], nextLines[targetRow],
+                            nextBorderExtent, nextCore, nextOffset);
                 }
             }
         }
     }
 
-    private static void drawCell(Graphics graphics, int x, int y, int cell) {
-        int inset = 1;
-        int borderExtent = cell - inset * 2 - 1;
-        graphics.drawRect(x + inset, y + inset,
-                borderExtent, borderExtent);
-        int inside = borderExtent - 1;
-        int core = inside / 2;
-        if (((inside - core) & 1) != 0) {
-            core++;
-        }
-        if (core < 2) {
-            core = 2;
-        }
-        int offset = inset + 1 + (inside - core) / 2;
-        graphics.fillRect(x + offset, y + offset, core, core);
-    }
-
-    private static void drawPreviewCell(Graphics graphics, int x, int y,
-            int cell) {
-        int inset = 1;
-        int borderExtent = cell - inset * 2 - 1;
-        graphics.drawRect(x + inset, y + inset,
-                borderExtent, borderExtent);
-        int inside = borderExtent - 1;
-        int core = inside / 2;
-        if (((inside - core) & 1) != 0) {
-            core++;
-        }
-        if (core < 2) {
-            core = 2;
-        }
-        int offset = inset + 1 + (inside - core) / 2;
+    private static void drawCell(Graphics graphics, int x, int y,
+            int borderExtent, int core, int offset) {
+        graphics.drawRect(x + 1, y + 1, borderExtent, borderExtent);
         graphics.fillRect(x + offset, y + offset, core, core);
     }
 
@@ -418,10 +431,11 @@ final class E23Renderer {
                     statusCenter, panelY + 42, INK_COLOR);
         }
 
-        Calendar calendar = Calendar.getInstance();
+        clockDate.setTime(now);
+        clockCalendar.setTime(clockDate);
         digits.drawClock(graphics,
-                calendar.get(Calendar.HOUR_OF_DAY),
-                calendar.get(Calendar.MINUTE), statusCenter,
+                clockCalendar.get(Calendar.HOUR_OF_DAY),
+                clockCalendar.get(Calendar.MINUTE), statusCenter,
                 panelY + 120, INK_COLOR);
 
         if (countdownStartedAt < 0L) {
