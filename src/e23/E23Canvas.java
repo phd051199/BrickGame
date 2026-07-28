@@ -303,7 +303,8 @@ final class E23Canvas extends GameCanvas implements Runnable {
             }
             return;
         }
-        if (isLeftSoftKey(keyCode) || keyCode == KEY_POUND) {
+        if (isLeftSoftKey(keyCode) || keyCode == KEY_NUM0
+                || keyCode == KEY_POUND) {
             releaseButtons();
             redraw = true;
             mode = PAUSED;
@@ -333,10 +334,32 @@ final class E23Canvas extends GameCanvas implements Runnable {
         }
     }
 
-    protected void keyRepeated(int keyCode) {
-    }
-
     private int mapKey(int keyCode) {
+        if (keyCode == KEY_NUM4) {
+            return E23Cpu.BUTTON_LEFT;
+        }
+        if (keyCode == KEY_NUM6) {
+            return E23Cpu.BUTTON_RIGHT;
+        }
+        if (keyCode == KEY_NUM8) {
+            return E23Cpu.BUTTON_DOWN;
+        }
+        if (keyCode == KEY_NUM2 || keyCode == KEY_NUM5) {
+            return E23Cpu.BUTTON_ROTATE;
+        }
+        if (keyCode == KEY_NUM1) {
+            return E23Cpu.BUTTON_START;
+        }
+        if (keyCode == KEY_NUM3) {
+            return E23Cpu.BUTTON_AUX;
+        }
+        if (keyCode == KEY_NUM7) {
+            return E23Cpu.BUTTON_OPTION;
+        }
+        if (keyCode == KEY_STAR) {
+            return E23Cpu.BUTTON_RESET;
+        }
+
         int action = gameAction(keyCode);
         if (action == LEFT) {
             return E23Cpu.BUTTON_LEFT;
@@ -347,61 +370,10 @@ final class E23Canvas extends GameCanvas implements Runnable {
         if (action == DOWN) {
             return E23Cpu.BUTTON_DOWN;
         }
-        if (action == UP || action == FIRE || keyCode == ' '
-                || keyCode == 10 || keyCode == 13) {
+        if (action == UP || action == FIRE) {
             return E23Cpu.BUTTON_ROTATE;
-        }
-
-        int character = keyCharacter(keyCode);
-        if (character == 'a') {
-            return E23Cpu.BUTTON_LEFT;
-        }
-        if (character == 'd') {
-            return E23Cpu.BUTTON_RIGHT;
-        }
-        if (character == 's') {
-            return E23Cpu.BUTTON_DOWN;
-        }
-        if (character == 'w') {
-            return E23Cpu.BUTTON_ROTATE;
-        }
-        if (keyCode == KEY_NUM1 || character == 'p') {
-            return E23Cpu.BUTTON_START;
-        }
-        if (keyCode == KEY_NUM2 || character == 'o') {
-            return E23Cpu.BUTTON_AUX;
-        }
-        if (keyCode == KEY_NUM3 || character == 'm') {
-            return E23Cpu.BUTTON_OPTION;
-        }
-        if (keyCode == KEY_STAR || character == 'r') {
-            return E23Cpu.BUTTON_RESET;
         }
         return -1;
-    }
-
-    private int keyCharacter(int keyCode) {
-        int code = keyCode < 0 ? -keyCode : keyCode;
-        if (code >= 'A' && code <= 'Z') {
-            return code + ('a' - 'A');
-        }
-        if (code >= 'a' && code <= 'z') {
-            return code;
-        }
-        String name;
-        try {
-            name = getKeyName(keyCode);
-        } catch (IllegalArgumentException ignored) {
-            return 0;
-        }
-        if (name == null || name.length() != 1) {
-            return 0;
-        }
-        char character = name.charAt(0);
-        if (character >= 'A' && character <= 'Z') {
-            character = (char) (character + ('a' - 'A'));
-        }
-        return character >= 'a' && character <= 'z' ? character : 0;
     }
 
     private int gameAction(int keyCode) {

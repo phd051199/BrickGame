@@ -296,16 +296,16 @@ final class E23Renderer {
         if (portrait) {
             int left = panelX + 8;
             drawHint(graphics, "1", "START", left, portraitFooterTop + 20);
-            drawHint(graphics, "2", "AUX", left, portraitFooterTop + 38);
-            drawHint(graphics, "#", "PAUSE", left, portraitFooterTop + 56);
+            drawHint(graphics, "3", "AUX", left, portraitFooterTop + 38);
+            drawHint(graphics, "0", "PAUSE", left, portraitFooterTop + 56);
             drawHint(graphics, "*", "RESET", left, portraitFooterTop + 74);
             return;
         }
         int leftColumn = panelX + 8;
         int rightColumn = panelX + panelWidth / 2 + 8;
-        drawHint(graphics, "P", "START", leftColumn, panelY + 206);
-        drawHint(graphics, "O", "AUX", rightColumn, panelY + 206);
-        drawHint(graphics, "#", "PAUSE", leftColumn, panelY + 223);
+        drawHint(graphics, "1", "START", leftColumn, panelY + 206);
+        drawHint(graphics, "3", "AUX", rightColumn, panelY + 206);
+        drawHint(graphics, "0", "PAUSE", leftColumn, panelY + 223);
         drawHint(graphics, "*", "RESET", rightColumn, panelY + 223);
     }
 

@@ -11,7 +11,7 @@ Java ME implementation dedicated to the E-23 96-in-1 handheld for 320×240 lands
 - Portrait mode removes BAT/TIME/UP and uses the side panel for advanced key hints
 - Preview pieces are vertically centered inside the 4×4 preview grid
 - E23 LCD map and HUD decoder only
-- QWERTY and directional-key input
+- Numeric keypad and directional-key input
 - No audio
 - No ROM selector or multi-core abstraction
 
@@ -31,13 +31,13 @@ dist/E23.jad
 
 ## Controls
 
-- Left/right/down: D-pad or `A/D/S`
-- Rotate/action: D-pad up, Enter, Space or `W`
-- Start: `1` or `P`
-- Auxiliary: `2` or `O`
-- Option: `3` or `M`
-- Reset: `*` or `R`
-- Pause: left softkey or `#`
+- Left/right/down: `4/6/8` or D-pad
+- Rotate/action: `2` or `5`, D-pad up or center
+- Start: `1`
+- Auxiliary: `3`
+- Option: `7`
+- Reset: `*`
+- Pause: `0`, `#` or left softkey
 - Exit: right softkey
 
 ## Packaged resources
